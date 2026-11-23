@@ -19,9 +19,11 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font: 14px/1.55 "IBM Plex Mono", ui-monospace, Consolas, monospace; padding: 40px 20px 60px; }
   a { color: var(--op); }
-  .page { max-width: 1060px; margin: 0 auto; }
+  .page { max-width: 1100px; margin: 0 auto; }
+  button { font: inherit; }
+  button:focus-visible { outline: 2px solid var(--chk); outline-offset: 2px; }
 
-  .win { background: var(--win); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 30px 80px rgba(0,0,0,.45); overflow: hidden; }
+  .win { background: var(--win); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 30px 80px rgba(0,0,0,.45); }
   .bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); color: var(--dim); font-size: 12px; }
   .bar i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
   .bar span { flex: 1; text-align: center; margin-right: 50px; }
@@ -29,15 +31,26 @@
 
   h1 { font-size: 15px; font-weight: 700; letter-spacing: .12em; text-align: center; color: var(--white); }
   h1 .a { color: var(--ai); } h1 .o { color: var(--op); } h1 .m { color: var(--mgr); }
-  .legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 26px; margin: 16px 0 26px; padding-bottom: 16px; border-bottom: 1px dashed var(--line); font-size: 12.5px; color: var(--dim); }
-  .legend b { display: inline-block; width: 9px; height: 9px; margin-right: 7px; vertical-align: 0; }
+  .legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 26px; margin: 16px 0 18px; font-size: 12.5px; color: var(--dim); }
+  .legend b { display: inline-block; width: 9px; height: 9px; margin-right: 7px; }
 
-  .board { display: grid; grid-template-columns: 250px 1fr; gap: 34px; }
+  /* scenario picker */
+  .scen { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 14px 0 18px; margin-bottom: 24px; border-top: 1px dashed var(--line); border-bottom: 1px dashed var(--line); }
+  .scen > span { color: var(--dim); font-size: 12.5px; margin-right: 4px; }
+  .scen button { font-size: 12.5px; color: var(--text); background: #171d29; border: 1px solid var(--line); border-radius: 3px; padding: 5px 10px; cursor: pointer; }
+  .scen button:hover { border-color: var(--chk); }
+  .scen button[aria-pressed="true"] { color: var(--bg); background: var(--chk); border-color: var(--chk); font-weight: 600; }
+  .scen button .n { color: var(--dim); }
+  .scen button[aria-pressed="true"] .n { color: #1d4a33; }
+
+  .board { display: grid; grid-template-columns: 290px 1fr; gap: 40px; }
+  .left { display: grid; gap: 14px; align-self: start; position: sticky; top: 16px; }
 
   /* nodes */
   .node { border: 1.5px solid var(--line); border-radius: 3px; padding: 12px 14px; background: #0f141d; transition: box-shadow .35s, border-color .35s; }
   .node:not(.on) { border-color: #3a4356; }
-  .node.hot { box-shadow: 0 0 0 1px currentColor, 0 0 26px -6px currentColor; }
+  .node.hot { outline: 1.5px solid currentColor; background: #161e2b; }
+  .node.bad { color: var(--red); border-color: var(--red); outline: 1.5px solid var(--red); background: #211618; }
   .node .t { font-weight: 700; color: var(--white); }
   .node .s { color: var(--dim); font-size: 12.5px; }
   .ai  { color: var(--ai);  border-color: var(--ai); }
@@ -46,57 +59,84 @@
   .mgr { color: var(--mgr); border-color: var(--mgr); }
   .sys { color: var(--dim); border-color: #4a5466; }
   .node > * { color: var(--text); }
-  .node .k { color: inherit; }
   .ai .k { color: var(--ai); } .op .k { color: var(--op); } .chk .k { color: var(--chk); } .mgr .k { color: var(--mgr); }
+  .k.red, .red { color: var(--red) !important; }
   .c { text-align: center; }
   .narrow { max-width: 300px; margin: 0 auto; }
   .mid { max-width: 440px; margin: 0 auto; }
 
   .rows { display: grid; gap: 3px; margin-top: 6px; font-size: 12.5px; }
-  .row { display: grid; grid-template-columns: 112px 1fr 92px; gap: 10px; align-items: center; }
-  .meter { height: 9px; background: #222a38; position: relative; }
-  .meter i { position: absolute; inset: 0 auto 0 0; background: currentColor; width: 0; transition: width .8s ease; }
+  .row { display: grid; grid-template-columns: 112px 1fr 104px; gap: 10px; align-items: center; }
+  .meter { height: 9px; background: #222a38; position: relative; display: block; }
+  .meter i { position: absolute; inset: 0 auto 0 0; width: 0; transition: width .8s ease, background .3s; }
   .on .meter i { width: var(--w); }
-  .ai .meter i { color: var(--ai); } .op .meter i { color: var(--op); } .chk .meter i { color: var(--chk); }
+  .ai .meter i { background: var(--ai); } .op .meter i { background: var(--op); } .chk .meter i { background: var(--chk); }
+  .meter i.red { background: var(--red) !important; }
   .foot { margin-top: 7px; font-size: 12.5px; }
 
   /* connectors */
+  .flow { position: relative; }
   .v { width: 0; height: 26px; border-left: 1.5px dashed #4a5466; margin: 0 auto; position: relative; }
   .v::after { content: ""; position: absolute; left: -4px; bottom: -3px; width: 7px; height: 7px; border-radius: 50%; background: #4a5466; }
-  .label { text-align: center; color: var(--white); font-size: 12.5px; margin: 6px 0; }
-  .label span { color: var(--op); font-weight: 600; }
+  .pool { text-align: center; color: var(--white); font-size: 12.5px; margin: 6px auto; padding: 3px 12px; width: max-content; max-width: 100%; border: 1.5px dashed transparent; border-radius: 3px; transition: border-color .3s, color .3s; }
+  .pool span { color: var(--op); font-weight: 600; }
+  .pool.hot { border-color: var(--op); }
+  .pool.bad { border-color: var(--red); color: var(--red); }
   .fork, .merge { position: relative; height: 24px; margin: 0 16.66%; border: 1.5px dashed #4a5466; }
   .fork { border-bottom: 0; } .merge { border-top: 0; }
   .fork::after, .merge::after { content: ""; position: absolute; left: 50%; height: 100%; border-left: 1.5px dashed #4a5466; }
   .fork::after { top: 0; } .merge::after { bottom: 0; }
   .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .three .rows { grid-template-columns: 36px 1fr; align-items: center; gap: 8px; color: var(--dim); }
   .state { font-size: 12px; margin-top: 4px; }
-
-  /* QC loop */
   .qcrow { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .loop { color: var(--red); font-size: 12px; text-align: center; margin-top: 6px; }
 
-  /* rail */
-  .rail { border: 1.5px solid var(--mgr); padding: 14px 16px; align-self: start; color: var(--text); }
+  /* QC → operator return line, placed by JS on the left side */
+  .backline { position: absolute; left: -16px; border-left: 1.5px dashed var(--red); opacity: .7; pointer-events: none; }
+  .backline::before, .backline::after { content: ""; position: absolute; left: 0; border-top: 1.5px dashed var(--red); }
+  .backline::before { top: 0; width: var(--wt); }
+  .backline::after { bottom: 0; width: var(--wb); }
+
+  /* the job, travelling along the lines */
+  .token { position: absolute; left: 0; top: 0; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--white);
+           box-shadow: 0 0 0 3px var(--win), 0 0 0 4.5px currentColor; color: var(--white); z-index: 5; pointer-events: none; opacity: 0; transition: opacity .3s, background .3s; }
+  .token::after { content: attr(data-label); position: absolute; left: 18px; top: -4px; font-size: 11px; color: var(--white); background: #0b0e14; padding: 0 5px; border: 1px solid var(--line); white-space: nowrap; }
+
+  /* left column: narration + manager */
+  .now { border: 1.5px solid var(--chk); padding: 14px 16px; background: var(--win); }
+  .now .h { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); margin-bottom: 8px; }
+  .now .h b { color: var(--chk); letter-spacing: .06em; }
+  .now .title { color: var(--white); font-weight: 700; font-size: 13.5px; margin-bottom: 6px; }
+  .now p { font-size: 13px; }
+  .now .why { color: var(--dim); margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+  .now .why b { color: var(--chk); font-weight: 600; }
+  .dots { display: flex; gap: 4px; margin-top: 12px; }
+  .dots i { flex: 1; height: 3px; background: #2a3242; }
+  .dots i.done { background: var(--chk); }
+  .ctl { display: flex; gap: 6px; margin-top: 12px; }
+  .ctl button { flex: 1; font-size: 12px; color: var(--text); background: #1b2230; border: 1px solid var(--line); border-radius: 3px; padding: 4px 8px; cursor: pointer; }
+  .ctl button:hover { border-color: var(--chk); }
+
+  .rail { border: 1.5px solid var(--mgr); padding: 14px 16px; color: var(--text); background: var(--win); }
   .rail h2 { font-size: 14px; color: var(--mgr); text-align: center; letter-spacing: .06em; }
   .rail .sub { text-align: center; color: var(--dim); font-size: 12.5px; margin-bottom: 14px; }
-  .step { position: relative; padding: 0 0 18px 18px; border-left: 1.5px dashed #3a4356; margin-left: 5px; font-size: 12.5px; }
-  .step:last-child { padding-bottom: 0; border-left-color: transparent; }
+  .step { position: relative; padding: 0 0 14px 18px; border-left: 1.5px dashed #3a4356; margin-left: 5px; font-size: 12.5px; }
+  .step:last-of-type { padding-bottom: 0; border-left-color: transparent; }
   .step::before { content: "◇"; position: absolute; left: -7px; top: -2px; background: var(--win); color: var(--mgr); line-height: 1; padding: 2px 0; }
   .step b { display: block; color: var(--white); font-weight: 600; }
   .step span { color: var(--dim); }
-  .step.lit { }
   .step.lit::before { content: "◆"; }
-  .step.lit b { color: var(--mgr); background: rgba(185,163,245,.12); margin-left: -6px; padding-left: 6px; }
+  .step.lit b { color: var(--mgr); background: rgba(185,163,245,.14); margin-left: -6px; padding-left: 6px; }
   .rail hr { border: 0; border-top: 1px dashed var(--line); margin: 14px 0; }
   .kv { display: flex; justify-content: space-between; font-size: 12.5px; }
   .kv span { color: var(--dim); }
 
   /* log + prompt */
   .log { margin: 30px 0 0; border: 1px solid var(--line); border-radius: 3px; padding: 18px 16px 10px; position: relative; min-height: 150px; }
-  .log legend, .log .lt { position: absolute; top: -10px; left: 14px; background: var(--win); padding: 0 8px; color: var(--dim); font-size: 12px; }
+  .log .lt { position: absolute; top: -10px; left: 14px; background: var(--win); padding: 0 8px; color: var(--dim); font-size: 12px; }
   .log ol { list-style: none; display: grid; gap: 2px; font-size: 12.5px; }
-  .log li { display: grid; grid-template-columns: 70px 96px 1fr; gap: 12px; animation: in .3s ease; }
+  .log li { display: grid; grid-template-columns: 54px 96px 1fr; gap: 12px; animation: in .3s ease; }
   .log time { color: var(--dim); }
   @keyframes in { from { opacity: 0; transform: translateY(4px); } }
   .prompt { margin: 18px -30px 0; padding: 12px 30px 14px; border-top: 1px solid var(--line); font-size: 12.5px; }
@@ -105,9 +145,6 @@
   @keyframes blink { 50% { opacity: 0; } }
   .status { color: var(--dim); margin-top: 4px; }
   .status b { font-weight: 600; }
-  .replay { float: right; font: inherit; font-size: 12px; color: var(--text); background: #1b2230; border: 1px solid var(--line); border-radius: 3px; padding: 3px 10px; cursor: pointer; }
-  .replay:hover { border-color: var(--chk); }
-  .replay:focus-visible { outline: 2px solid var(--chk); outline-offset: 2px; }
 
   /* below the window */
   .facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 26px; }
@@ -121,24 +158,33 @@
   .notes li::before { content: "› "; color: var(--chk); }
   footer { margin-top: 26px; color: var(--dim); font-size: 12px; text-align: center; }
 
-  @media (max-width: 860px) {
+  @media (max-width: 900px) {
     body { padding: 16px 10px 40px; }
     .inner { padding: 20px 14px 0; }
     .prompt { margin: 18px -14px 0; padding: 12px 14px; }
-    .board { grid-template-columns: 1fr; }
+    .board { grid-template-columns: 1fr; gap: 20px; }
+    .left { display: contents; }
+    .now { order: 0; position: sticky; top: 6px; z-index: 6; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+    .flow { order: 1; }
     .rail { order: 2; }
     .three { gap: 8px; }
     .three .node { padding: 10px 8px; }
-    .row { grid-template-columns: 96px 1fr; }
-    .row > :last-child { grid-column: 2; }
+    .three .rows { grid-template-columns: 1fr; }
+    .three .rows > span:first-child { display: none; }
     .log li { grid-template-columns: 46px 1fr; }
     .log li > :nth-child(2) { display: none; }
     .facts { grid-template-columns: 1fr 1fr; }
     .notes { grid-template-columns: 1fr; }
     .bar span { margin-right: 0; }
+    .token::after { display: none; }
+  }
+  @media (max-width: 560px) {
+    .row { grid-template-columns: 96px 1fr; }
+    .row > :last-child { grid-column: 2; }
+    .now .why { display: none; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .node, .meter i, .log li { transition: none; animation: none; }
+    .node, .meter i, .log li, .token { transition: none; animation: none; }
     .prompt .cur { animation: none; }
   }
 </style>
@@ -156,25 +202,54 @@
       <span><b style="background:var(--op)"></b>operators · do the work</span>
       <span><b style="background:var(--chk)"></b>system · checks</span>
       <span><b style="background:var(--mgr)"></b>manager + QC · decide</span>
+      <span><b style="background:var(--red)"></b>problem caught</span>
+    </div>
+
+    <div class="scen" role="group" aria-label="Scenario">
+      <span>scenario ›</span>
+      <button type="button" data-s="normal"><span class="n">1</span> normal job</button>
+      <button type="button" data-s="unsure"><span class="n">2</span> AI is unsure</button>
+      <button type="button" data-s="nobody"><span class="n">3</span> nobody takes it</button>
+      <button type="button" data-s="unsigned"><span class="n">4</span> checklist not signed</button>
+      <button type="button" data-s="reject"><span class="n">5</span> QC rejects 3 times</button>
+      <button type="button" data-s="race"><span class="n">6</span> two people click at once</button>
+      <button type="button" data-s="hold"><span class="n">7</span> client puts it on hold</button>
     </div>
 
     <div class="board">
-      <aside class="rail" aria-label="When the manager steps in">
-        <h2>MANAGER</h2>
-        <div class="sub">on call · not a gate</div>
-        <div class="step" data-rail="assign"><b>top 3 suggestions</b><span>can assign from the pool, or let an operator take it</span></div>
-        <div class="step" data-rail="timeout"><b>nobody took it</b><span>alert when a job waits too long in the pool</span></div>
-        <div class="step" data-rail="qc3"><b>QC round 3</b><span>third rejection is escalated</span></div>
-        <div class="step" data-rail="hold"><b>hold · cancel · archive</b><span>only managers can stop or close a job</span></div>
-        <hr>
-        <div class="kv"><span>sees</span>every job</div>
-        <div class="kv"><span>reports</span>daily → Teams</div>
-        <div class="kv"><span>SLA</span>client + type + urgency</div>
-        <hr>
-        <div class="sub" style="margin:0">jobs never wait for a manager. the AI puts them straight in the pool.</div>
-      </aside>
+      <div class="left">
+        <div class="now" aria-live="polite">
+          <div class="h"><b id="scen-name">NORMAL JOB</b><span id="stepn">step 1 / 6</span></div>
+          <div class="title" id="say-t"></div>
+          <p id="say"></p>
+          <p class="why" id="why"></p>
+          <div class="dots" id="dots"></div>
+          <div class="ctl">
+            <button type="button" id="b-pause">❚❚ pause</button>
+            <button type="button" id="b-next">next ›</button>
+            <button type="button" id="b-replay">↻ replay</button>
+          </div>
+        </div>
 
-      <div class="flow">
+        <aside class="rail" aria-label="When the manager steps in">
+          <h2>MANAGER</h2>
+          <div class="sub">on call · not a gate</div>
+          <div class="step" data-rail="review"><b>check flagged jobs</b><span>fix fields the AI was unsure of</span></div>
+          <div class="step" data-rail="timeout"><b>nobody took it</b><span>Teams alert when a job waits too long</span></div>
+          <div class="step" data-rail="assign"><b>assign from top 3</b><span>picks from the suggested operators</span></div>
+          <div class="step" data-rail="qc3"><b>QC round 3</b><span>third rejection comes to the manager</span></div>
+          <div class="step" data-rail="hold"><b>hold · resume · cancel</b><span>only managers can stop a job</span></div>
+          <hr>
+          <div class="kv"><span>sees</span>every job</div>
+          <div class="kv"><span>reports</span>daily → Teams</div>
+          <div class="kv"><span>deadline</span>client + type + urgency</div>
+        </aside>
+      </div>
+
+      <div class="flow" id="flow">
+        <span class="token" id="token" data-label="ABC40001"></span>
+        <span class="backline" id="backline"></span>
+
         <div class="node sys narrow c" id="n-mail">
           <div class="t">INBOX</div>
           <div class="s">read every 2 min · duplicates and auto-replies skipped</div>
@@ -184,21 +259,21 @@
         <div class="node ai mid" id="n-ai">
           <div class="t"><span class="k">LOCAL AI</span> · one model on the studio's own machine</div>
           <div class="rows">
-            <div class="row"><span>new job?</span><span class="meter"><i style="--w:97%"></i></span><span class="k">0.97 sure</span></div>
-            <div class="row"><span>job name</span><span class="meter"><i style="--w:94%"></i></span><span class="k">0.94 sure</span></div>
-            <div class="row"><span>Thai notes</span><span class="meter"><i style="--w:100%"></i></span><span class="k">→ summary</span></div>
-            <div class="row"><span>time estimate</span><span class="meter"><i style="--w:60%"></i></span><span class="k">~30 min</span></div>
+            <div class="row"><span>new job?</span><span class="meter"><i id="m-ai1"></i></span><span class="k" id="v-ai1"></span></div>
+            <div class="row"><span>job name</span><span class="meter"><i id="m-ai2"></i></span><span class="k" id="v-ai2"></span></div>
+            <div class="row"><span>Thai notes</span><span class="meter"><i id="m-ai3"></i></span><span class="k" id="v-ai3"></span></div>
+            <div class="row"><span>time estimate</span><span class="meter"><i id="m-ai4"></i></span><span class="k" id="v-ai4"></span></div>
           </div>
-          <div class="foot"><span class="k">sure → pool</span> · <span style="color:var(--red)">unsure → flagged for review</span></div>
+          <div class="foot"><span class="k">sure → pool</span> · <span class="red">unsure → flagged for review</span></div>
         </div>
         <div class="v"></div>
 
-        <div class="label">JOB POOL · <span>first one wins</span> · NAS folder linked</div>
+        <div class="pool" id="n-pool">JOB POOL · <span>first one wins</span> · NAS folder linked</div>
         <div class="fork"></div>
         <div class="three">
-          <div class="node op c" id="n-op1"><div class="t">Mali</div><div class="s">claims ABC40001</div><div class="rows"><span class="meter"><i style="--w:71%"></i></span></div><div class="state k" id="s-op1">○ waiting</div></div>
-          <div class="node op c" id="n-op2"><div class="t">Somchai</div><div class="s">assigned by manager</div><div class="rows"><span class="meter"><i style="--w:35%"></i></span></div><div class="state k" id="s-op2">○ waiting</div></div>
-          <div class="node op c" id="n-op3"><div class="t">Ploy</div><div class="s">correction · round 1</div><div class="rows"><span class="meter"><i style="--w:98%"></i></span></div><div class="state k" id="s-op3">○ waiting</div></div>
+          <div class="node op c" id="n-op1"><div class="t">Mali</div><div class="s" id="d-op1"></div><div class="rows"><span>load</span><span class="meter"><i id="m-op1"></i></span></div><div class="state k" id="s-op1"></div></div>
+          <div class="node op c" id="n-op2"><div class="t">Somchai</div><div class="s" id="d-op2"></div><div class="rows"><span>load</span><span class="meter"><i id="m-op2"></i></span></div><div class="state k" id="s-op2"></div></div>
+          <div class="node op c" id="n-op3"><div class="t">Ploy</div><div class="s" id="d-op3"></div><div class="rows"><span>load</span><span class="meter"><i id="m-op3"></i></span></div><div class="state k" id="s-op3"></div></div>
         </div>
         <div class="merge"></div>
         <div class="v"></div>
@@ -206,17 +281,17 @@
         <div class="node chk mid" id="n-chk">
           <div class="t"><span class="k">SIGNED CHECKLIST</span> · read from the PDF</div>
           <div class="rows">
-            <div class="row"><span>job number</span><span class="meter"><i style="--w:100%"></i></span><span class="k">✓ match</span></div>
-            <div class="row"><span>signature</span><span class="meter"><i style="--w:100%"></i></span><span class="k">✓ signed</span></div>
-            <div class="row"><span>checkboxes</span><span class="meter"><i style="--w:100%"></i></span><span class="k">✓ 14 / 14</span></div>
+            <div class="row"><span>job number</span><span class="meter"><i id="m-ck1"></i></span><span class="k" id="v-ck1"></span></div>
+            <div class="row"><span>signature</span><span class="meter"><i id="m-ck2"></i></span><span class="k" id="v-ck2"></span></div>
+            <div class="row"><span>checkboxes</span><span class="meter"><i id="m-ck3"></i></span><span class="k" id="v-ck3"></span></div>
           </div>
-          <div class="foot"><span class="k">pass → QC</span> · <span style="color:var(--red)">fail → upload refused, reason shown</span></div>
+          <div class="foot"><span class="k">pass → QC</span> · <span class="red">fail → upload refused, reason shown</span></div>
         </div>
         <div class="v"></div>
 
         <div class="qcrow">
-          <div class="node mgr c" id="n-qc"><div class="t"><span class="k">QC REVIEW</span></div><div class="s">approve, or reject with notes</div></div>
-          <div class="node sys c" id="n-sent"><div class="t">SENT · ARCHIVED</div><div class="s">kept forever · searchable by any job number</div></div>
+          <div class="node mgr c" id="n-qc"><div class="t"><span class="k">QC REVIEW</span></div><div class="s" id="d-qc">approve, or reject with notes</div></div>
+          <div class="node sys c" id="n-sent"><div class="t">SENT · ARCHIVED</div><div class="s" id="d-sent">kept forever · searchable by any job number</div></div>
         </div>
         <div class="loop">↺ rejected work goes back to the same operator · 3rd time → manager</div>
       </div>
@@ -224,11 +299,10 @@
 
     <div class="log">
       <span class="lt">session log</span>
-      <ol id="log" aria-live="polite"></ol>
+      <ol id="log"></ol>
     </div>
 
     <div class="prompt">
-      <button type="button" class="replay" id="replay">↻ replay</button>
       <div><span style="color:var(--chk)">~/studio</span> <span class="cmd">$ studio-pm board --today</span> <span class="cur"></span></div>
       <div class="status" id="status"></div>
     </div>
@@ -267,56 +341,227 @@
 </div>
 
 <script>
-// One job's story; each step lights nodes, writes a log line, updates the board counts.
-const STEPS = [
-  { on:["n-mail"], who:"inbox", c:"--dim", text:"new email · ABC40001_170900001_SNACK_TRAY", s:[1,0,0,0] },
-  { on:["n-ai"], who:"ai", c:"--ai", text:"new job 0.97 · brand ABC · pack TRAY · ~30 min", s:[1,0,0,0] },
-  { on:["n-op1"], who:"pool", c:"--op", text:"Mali takes the job · first click wins", s:[0,1,0,0], op:["s-op1","◐ working"], rail:"assign" },
-  { on:["n-chk"], who:"checklist", c:"--chk", text:"signed PDF read · number ✓ signature ✓ 14/14 ✓", s:[0,0,1,0], op:["s-op1","✓ submitted"] },
-  { on:["n-qc"], who:"qc", c:"--mgr", text:"rejected · \"barcode too close to fold\" · round 1", s:[0,1,0,0], op:["s-op1","↺ fixing"] },
-  { on:["n-op1"], who:"mali", c:"--op", text:"correction done · checklist uploaded again", s:[0,0,1,0], op:["s-op1","✓ submitted"] },
-  { on:["n-chk","n-qc"], who:"qc", c:"--mgr", text:"approved", s:[0,0,0,1] },
-  { on:["n-sent"], who:"sent", c:"--dim", text:"3 files sent · archived · on time", s:[0,0,0,1] },
-];
+/* Each scenario is a list of steps. A step moves the job to a node (at), writes a log line,
+   explains itself in the left box (t = title, say = what happens, why = why it matters),
+   and may change meters (set), operator cards (ops), mark a problem (bad) or light a manager duty (rail). */
+const OK = { ai1:[97,"0.97 sure"], ai2:[94,"0.94 sure"], ai3:[100,"→ summary"], ai4:[60,"~30 min"],
+             ck1:[100,"✓ match"], ck2:[100,"✓ signed"], ck3:[100,"✓ 14 / 14"] };
+const OPS = { op1:["brand ABC · 12 jobs", 30, "○ free"], op2:["brand ABC · 30 jobs", 70, "◐ other job"], op3:["new to brand ABC", 20, "○ free"] };
+
+const S = {};
+const mail = (text) => ({ at:"n-mail", who:"inbox", text, t:"An email arrives",
+  say:"A client sends a new job by email. The system reads the inbox every 2 minutes.",
+  why:"Auto-replies, spam and the same email sent twice are dropped before the AI is asked." });
+const ai = { at:"n-ai", who:"ai", text:"new job 0.97 · brand ABC · pack TRAY · ~30 min", t:"The local AI reads it",
+  say:"It decides it is a new job, reads the job name, summarises the Thai notes and guesses the time.",
+  why:"Job number, brand and pack type come from the file name, so <b>nobody retypes them</b>." };
+const claim = (op, name) => ({ at:"n-"+op, who:"pool", text:`${name} takes the job · first click wins`, t:`${name} takes it from the pool`,
+  say:`The job goes into the pool straight away. ${name} knows this brand, so she clicks Take.`,
+  why:"Jobs never wait for a manager. Anyone can take any job.", ops:{ [op]:[null, 75, "◐ working"] } });
+const check = (op) => ({ at:"n-chk", who:"checklist", text:"signed PDF read · number ✓ signature ✓ 14/14 ✓", t:"The checklist is checked",
+  say:"The operator ticks the checklist PDF and signs it in Acrobat. The system reads the PDF itself.",
+  why:"A wrong job number, missing signature or empty box would <b>stop the job here</b>, before QC.",
+  ops:{ [op]:[null, null, "✓ submitted"] } });
+const approve = { at:"n-qc", who:"qc", text:"approved by Niran (QC)", t:"QC approves",
+  say:"QC checks the artwork against the brief and approves it.",
+  why:"An operator cannot approve their own work unless the studio allows self-review for them." };
+const sent = (extra) => ({ at:"n-sent", who:"sent", text:"3 files sent · archived · " + (extra || "on time"), t:"Sent and archived",
+  say:"The files go to the client. Who sent it, how many files and when are all saved.",
+  why:"The job is <b>archived, never deleted</b>. Anyone can find it later by any of its numbers." });
+
+S.normal = { name:"NORMAL JOB", steps:[ mail("ABC40001_170900001_SNACK_TRAY"), ai, claim("op1","Mali"), check("op1"), approve, sent() ] };
+
+S.unsure = { name:"AI IS UNSURE", steps:[
+  mail("\"tray update for ABC, see attached\""),
+  { at:"n-ai", who:"ai", bad:true, text:"job name 0.52 · flagged for review", set:{ ai2:[52,"0.52 unsure",1] }, t:"The AI is not sure",
+    say:"The subject is messy and the file name doesn't follow the naming rule. The AI can only guess the job number.",
+    why:"Below 0.7 the field is <b>flagged</b> on the pool card. The AI never guesses silently." },
+  { at:"n-pool", who:"pool", bad:true, text:"in pool with ⚑ review badge", t:"It still enters the pool",
+    say:"The job is not blocked. It goes into the pool with a review badge, so work can start.",
+    why:"A flag slows nothing down. It only tells people what to double-check." },
+  { at:"n-pool", who:"manager", rail:"review", text:"Nok (manager) fixes job number → ABC40002", set:{ ai2:[100,"✓ fixed by Nok"] }, t:"The manager fixes it",
+    say:"A manager opens the flagged job, corrects the job number and clears the badge.",
+    why:"The original email is kept, so <b>the fix can always be checked</b> against it." },
+  claim("op3","Ploy"), check("op3"), approve, sent() ] };
+
+S.nobody = { name:"NOBODY TAKES IT", ops:{ op1:[null,95,"◐ busy"], op2:[null,90,"◐ busy"], op3:[null,85,"◐ busy"] }, steps:[
+  mail("ABC40003_170900003_GIFT_BOX · urgent"), ai,
+  { at:"n-pool", who:"pool", bad:true, dt:60, over:1, text:"waiting 60 min · nobody claimed", t:"Everyone is busy",
+    say:"All operators are working on other jobs, so nobody takes this one.",
+    why:"After the pool time limit (60 min here) the card <b>turns red</b> on the board." },
+  { at:"n-pool", who:"system", rail:"timeout", over:1, text:"alert → managers in Teams", ops:{ op2:[null,20,"○ just finished"] }, t:"The manager is alerted",
+    say:"The system sends a Teams message to the managers. Meanwhile Somchai finishes his last job.",
+    why:"Managers don't have to watch the board all day. <b>The system tells them</b>." },
+  { at:"n-op2", who:"manager", rail:"assign", text:"Nok assigns Somchai · score 0.86 (top of 3)", ops:{ op2:[null,75,"◐ working"] }, t:"The manager assigns",
+    say:"The manager picks from the top 3 suggestions. Somchai scores highest.",
+    why:"The score is simple maths, not AI: <b>knows the brand 40% · free today 30% · light load 20% · recent work 10%</b>." },
+  check("op2"), approve, sent("before the deadline") ] };
+
+S.unsigned = { name:"CHECKLIST NOT SIGNED", steps:[
+  mail("ABC40004_170900004_SNACK_TRAY"), ai, claim("op1","Mali"),
+  { at:"n-chk", who:"checklist", bad:true, text:"upload refused · signature missing", set:{ ck2:[0,"✗ missing",1], ck3:[93,"✗ 13 / 14",1] }, ops:{ op1:[null,null,"✗ refused"] }, t:"The upload is refused",
+    say:"Mali uploads the checklist but forgot to sign it and missed one box.",
+    why:"The upload is refused with the reason shown. <b>The job does not move</b>, and QC never sees an unfinished job." },
+  { at:"n-op1", who:"mali", text:"Mali signs and ticks the last box", ops:{ op1:[null,null,"◐ signing"] }, t:"Mali fixes it",
+    say:"Mali opens the PDF again, signs it and ticks the missing box.",
+    why:"Nothing was lost: the job stayed with Mali the whole time." },
+  { ...check("op1"), set:{ ck2:[100,"✓ signed"], ck3:[100,"✓ 14 / 14"] }, t:"Second try passes" },
+  approve, sent() ] };
+
+const reject = (n) => ({ at:"n-qc", who:"qc", bad:true, text:`rejected · round ${n} · "barcode too close to fold"`, ops:{ op1:[null,null,"↺ correction"] },
+  set:{}, d:{ qc:`round ${n} of 3` }, t:`QC rejects · round ${n}`,
+  say: n === 1 ? "QC finds a problem and rejects it with a note." : "The fix still isn't right, so QC rejects it again.",
+  why:"The job goes back to the same operator with the note, and <b>the round is counted</b>." });
+const fix = (n) => ({ at:"n-op1", who:"mali", text:`Mali fixes the artwork (round ${n})`, ops:{ op1:[null,null,"◐ fixing"] }, t:"Back to Mali",
+  say:"The job travels back to Mali with QC's note attached.", why:"Corrections always go to the person who knows the job best." });
+
+S.reject = { name:"QC REJECTS 3 TIMES", steps:[
+  mail("ABC40005_170900005_TRAY_LID"), ai, claim("op1","Mali"), check("op1"),
+  reject(1), fix(1), { ...check("op1"), t:"Checked again" }, reject(2), fix(2), { ...check("op1"), t:"Checked again" },
+  { ...reject(3), rail:"qc3", text:"rejected · round 3 → escalated to Nok (manager)", t:"Round 3: the manager steps in",
+    say:"A third rejection means something bigger is wrong, so the manager is pulled in.",
+    why:"Rejections per person show in the weekly report, so <b>training needs become visible</b>." },
+  { at:"n-qc", who:"manager", text:"Nok + Niran: approved, client asked about the fold", d:{ qc:"approved by manager" }, t:"The manager decides",
+    say:"The manager looks at it with QC, decides it's a client question, approves and notes it.",
+    why:"Every decision and note is saved in the job's history." },
+  sent("1 day late · reason logged") ] };
+
+S.race = { name:"TWO PEOPLE CLICK AT ONCE", steps:[
+  mail("ABC40006_170900006_SNACK_TRAY"), ai,
+  { at:"n-pool", who:"pool", text:"Mali and Ploy both click Take · same second", t:"Two clicks at the same time",
+    say:"Mali and Ploy both click Take on the same job in the same second.",
+    why:"Without protection, both would think the job is theirs." },
+  { at:"n-op1", who:"system", also:["n-op3"], text:"Mali wins · Ploy sees \"taken by Mali\"", ops:{ op1:[null,75,"◐ working"], op3:[null,null,"✗ taken by Mali"] }, t:"Only one click wins",
+    say:"The database accepts only the first change. Mali gets the job, Ploy sees a clear message.",
+    why:"Each job has a <b>version number</b>. Ploy's click carries the old version, so it is refused. No double work." },
+  check("op1"), approve, sent() ] };
+
+S.hold = { name:"CLIENT PUTS IT ON HOLD", steps:[
+  mail("ABC40007_170900007_GIFT_BOX"), ai, claim("op1","Mali"),
+  { at:"n-op1", who:"manager", rail:"hold", bad:true, text:"put on hold by Nok · \"client waiting for new text\"", ops:{ op1:[null,30,"❚❚ on hold"] }, t:"The manager puts it on hold",
+    say:"The client emails: stop, new text is coming. The manager puts the job on hold with a reason.",
+    why:"Held jobs don't count against the deadline report, and <b>the system remembers where it stopped</b>." },
+  { at:"n-mail", stay:true, who:"inbox", text:"client reply · new text attached → linked to ABC40007", t:"The client replies",
+    say:"Two days later the new text arrives. The AI sees it is a reply and links it to the same job.",
+    why:"Replies join the existing job. <b>No duplicate job is made</b>." },
+  { at:"n-op1", who:"manager", rail:"hold", text:"resumed by Nok · back to Mali, in progress", ops:{ op1:[null,75,"◐ working"] }, t:"Resumed where it stopped",
+    say:"The manager resumes the job. It goes back to Mali in the same status it had before.",
+    why:"Only managers can hold, resume or cancel, so jobs don't quietly disappear." },
+  check("op1"), approve, sent() ] };
+
+/* ---------- engine ---------- */
 const $ = id => document.getElementById(id);
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-let timer, i, t;
+const flow = $("flow"), token = $("token");
+let cur = "normal", i = 0, clock = 0, timer = null, paused = false, here = null;
+const COLORS = { "n-mail":"--dim", "n-ai":"--ai", "n-pool":"--op", "n-op1":"--op", "n-op2":"--op", "n-op3":"--op", "n-chk":"--chk", "n-qc":"--mgr", "n-sent":"--dim" };
+const WHO = { inbox:"--dim", ai:"--ai", pool:"--op", checklist:"--chk", qc:"--mgr", sent:"--dim", manager:"--mgr", system:"--chk", mali:"--op" };
 
-function status(s) {
-  const base = [11, 8, 4, 37];
-  const [p, w, q, d] = base.map((n, k) => n + s[k]);
-  $("status").innerHTML = `pool <b style="color:var(--op)">[${p}]</b>  working <b style="color:var(--op)">[${w}]</b>  qc <b style="color:var(--mgr)">[${q}]</b>  sent today <b style="color:var(--chk)">[${d}]</b>  overdue <b style="color:var(--red)">[0]</b>`;
+function meter(key, [w, label, bad]) {
+  const m = $("m-" + key); m.style.setProperty("--w", w + "%"); m.classList.toggle("red", !!bad);
+  const v = $("v-" + key); if (v) { v.textContent = label; v.classList.toggle("red", !!bad); }
+}
+function op(key, [desc, load, state]) {
+  if (desc != null) $("d-" + key).textContent = desc;
+  if (load != null) $("m-" + key).style.setProperty("--w", load + "%");
+  if (state != null) { $("s-" + key).textContent = state; $("s-" + key).classList.toggle("red", state.startsWith("✗")); }
+}
+function box(el) {
+  const f = flow.getBoundingClientRect(), r = el.getBoundingClientRect();
+  return { l: r.left - f.left, r: r.right - f.left, t: r.top - f.top, b: r.bottom - f.top, cx: (r.left + r.right) / 2 - f.left, cy: (r.top + r.bottom) / 2 - f.top };
+}
+// Route the job along the drawn lines: down through the fork/merge brackets, sideways between QC and Sent,
+// and back up the left side for loops (rejections, holds, replies).
+function route(fromId, toId) {
+  const a = box($(fromId)), b = box($(toId));
+  if (fromId === toId) return [[b.cx, b.t]];
+  if (b.t >= a.b - 2) {
+    const mid = [...flow.querySelectorAll(".fork,.merge")].map(box).find(x => x.t >= a.b - 2 && x.b <= b.t + 2);
+    // fork bracket: run along its top line; merge bracket: along its bottom line
+    const y = mid ? (fromId.startsWith("n-op") ? mid.b : mid.t) : (a.b + b.t) / 2;
+    return [[a.cx, a.b], [a.cx, y], [b.cx, y], [b.cx, b.t]];
+  }
+  if (Math.abs(a.cy - b.cy) < 30) return [[a.r, a.cy], [b.l, b.cy]];
+  const g = -16;
+  return [[a.l, a.cy], [g, a.cy], [g, b.cy], [b.l, b.cy]];
+}
+function move(toId) {
+  const target = $(toId);
+  token.style.background = `var(${COLORS[toId]})`; token.style.color = `var(${COLORS[toId]})`;
+  token.style.opacity = 1;
+  // the job leaves from the box's exit point, so it never cuts across a box
+  const path = here ? route(here.id, toId) : [[box(target).cx, box(target).t]];
+  const end = path[path.length - 1];
+  here = { id: toId, p: end };
+  if (reduce || path.length < 2) { token.style.transform = `translate(${end[0]}px,${end[1]}px)`; return; }
+  let total = 0; const lens = [0];
+  for (let k = 1; k < path.length; k++) { total += Math.hypot(path[k][0] - path[k-1][0], path[k][1] - path[k-1][1]); lens.push(total); }
+  token.animate(path.map((p, k) => ({ transform: `translate(${p[0]}px,${p[1]}px)`, offset: total ? lens[k] / total : k / (path.length - 1) })),
+    { duration: Math.min(1400, 350 + total * 1.6), easing: "ease-in-out", fill: "forwards" });
+  token.style.transform = `translate(${end[0]}px,${end[1]}px)`;
+}
+function layout() {
+  const a = box($("n-op1")), q = box($("n-qc")), l = $("backline");
+  l.style.top = a.cy + "px"; l.style.height = (q.cy - a.cy) + "px";
+  l.style.setProperty("--wt", (a.l + 16) + "px"); l.style.setProperty("--wb", (q.l + 16) + "px");
+}
+function status(at, over) {
+  const n = [11, 8, 4, 37];
+  const k = { "n-mail":0, "n-ai":0, "n-pool":0, "n-op1":1, "n-op2":1, "n-op3":1, "n-chk":2, "n-qc":2, "n-sent":3 }[at];
+  n[k]++;
+  $("status").innerHTML = `pool <b style="color:var(--op)">[${n[0]}]</b>  working <b style="color:var(--op)">[${n[1]}]</b>  qc <b style="color:var(--mgr)">[${n[2]}]</b>  sent today <b style="color:var(--chk)">[${n[3]}]</b>  overdue <b style="color:var(--red)">[${over ? 1 : 0}]</b>`;
 }
 function step() {
-  const st = STEPS[i];
-  document.querySelectorAll(".node.hot").forEach(n => n.classList.remove("hot"));
-  st.on.forEach(id => $(id).classList.add("on", "hot"));
-  if (st.op) $(st.op[0]).textContent = st.op[1];
+  const sc = S[cur], st = sc.steps[i];
+  if (!st) return stop();
+  document.querySelectorAll(".hot,.bad").forEach(n => n.classList.remove("hot", "bad"));
+  const el = $(st.at);
+  el.classList.add("on", st.bad ? "bad" : "hot");
+  (st.also || []).forEach(id => $(id).classList.add("on", "bad"));
+  if (st.at === "n-ai" || st.set) Object.entries(st.set || {}).forEach(([k, v]) => meter(k, v));
+  Object.entries(st.ops || {}).forEach(([k, v]) => op(k, v));
+  if (st.d) Object.entries(st.d).forEach(([k, v]) => { $("d-" + k).textContent = v; });
   if (st.rail) document.querySelector(`[data-rail="${st.rail}"]`).classList.add("lit");
-  t += 3 + Math.floor(Math.random() * 9);
+  if (!st.stay) move(st.at);
+  clock += st.dt || 3 + ((i * 7) % 9);
   const li = document.createElement("li");
-  li.innerHTML = `<time>${String(9 + Math.floor(t / 60)).padStart(2,"0")}:${String(t % 60).padStart(2,"0")}</time><span style="color:var(${st.c})">${st.who}</span><span>${st.text}</span>`;
+  li.innerHTML = `<time>${String(9 + Math.floor(clock / 60)).padStart(2,"0")}:${String(clock % 60).padStart(2,"0")}</time><span style="color:var(${WHO[st.who] || "--dim"})">${st.who}</span><span${st.bad ? ' class="red"' : ""}>${st.text}</span>`;
   $("log").appendChild(li);
-  status(st.s);
+  status(st.stay ? here.id : st.at, st.over);
+  $("stepn").textContent = `step ${i + 1} / ${sc.steps.length}`;
+  $("say-t").textContent = st.t;
+  $("say").textContent = st.say;
+  $("why").innerHTML = "<b>why:</b> " + st.why;
+  [...$("dots").children].forEach((d, k) => d.classList.toggle("done", k <= i));
   i++;
+  if (i >= sc.steps.length) stop();
 }
-function start() {
-  clearInterval(timer);
-  i = 0; t = 12;
+function stop() { clearInterval(timer); timer = null; $("b-pause").textContent = "▶ play"; paused = true; }
+function play() { paused = false; $("b-pause").textContent = "❚❚ pause"; clearInterval(timer); timer = setInterval(step, 4200); }
+function start(name) {
+  cur = name; i = 0; clock = 2; here = null;
+  document.querySelectorAll(".scen button").forEach(b => b.setAttribute("aria-pressed", b.dataset.s === name));
+  $("scen-name").textContent = S[name].name;
   $("log").innerHTML = "";
-  document.querySelectorAll(".node").forEach(n => n.classList.remove("on", "hot"));
+  document.querySelectorAll(".node,.pool").forEach(n => n.classList.remove("on", "hot", "bad"));
   document.querySelectorAll(".step").forEach(n => n.classList.remove("lit"));
-  ["s-op1","s-op2","s-op3"].forEach(id => $(id).textContent = "○ waiting");
-  // the other two operators are busy on their own jobs
-  ["n-op2","n-op3"].forEach(id => $(id).classList.add("on"));
-  $("s-op2").textContent = "◐ working"; $("s-op3").textContent = "◐ fixing";
-  status([0,0,0,0]);
-  if (reduce) { while (i < STEPS.length) step(); document.querySelectorAll(".node.hot").forEach(n => n.classList.remove("hot")); return; }
+  Object.entries(OK).forEach(([k, v]) => meter(k, v));
+  Object.entries(OPS).forEach(([k, v]) => op(k, v));
+  Object.entries(S[name].ops || {}).forEach(([k, v]) => op(k, v));
+  $("d-qc").textContent = "approve, or reject with notes";
+  ["n-op1","n-op2","n-op3"].forEach(id => $(id).classList.add("on"));
+  $("dots").innerHTML = S[name].steps.map(() => "<i></i>").join("");
+  token.style.opacity = 0;
   step();
-  timer = setInterval(() => { if (i < STEPS.length) step(); else clearInterval(timer); }, 1700);
+  if (reduce) stop(); else play();
 }
-$("replay").onclick = start;
-start();
+document.querySelectorAll(".scen button").forEach(b => b.onclick = () => start(b.dataset.s));
+$("b-replay").onclick = () => start(cur);
+$("b-next").onclick = () => { if (i >= S[cur].steps.length) return; stop(); step(); };
+$("b-pause").onclick = () => { if (i >= S[cur].steps.length) return start(cur); paused ? (step(), play()) : stop(); };
+addEventListener("resize", () => { layout(); if (here) { const p = route(here.id, here.id)[0]; here.p = p; token.getAnimations().forEach(a => a.cancel()); token.style.transform = `translate(${p[0]}px,${p[1]}px)`; } });
+layout();
+start("normal");
 </script>
 </body>
 </html>
