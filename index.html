@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studio PM: job management for a packaging prepress studio</title>
+<meta name="description" content="System design for a self-hosted job management system for a packaging prepress studio: email intake, local AI parsing, job pool, QC loop, SLA reports.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;600&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:#151a21; --gold:#8a6414; --gold-bright:#b8861f; --teal:#2c6b66; --muted:#535b67;
+    --rule:#dde1e6; --paper:#f6f5f1; --card:#ffffff; --red:#a8322c; --tint:#f3ecda;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { font: 16px/1.6 "IBM Plex Sans Thai", system-ui, sans-serif; color: var(--ink); background: var(--paper); }
+  a { color: var(--teal); }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .88em; }
+  h1, h2, h3 { font-family: "Chakra Petch", sans-serif; line-height: 1.15; }
+  h2 { font-size: 1.75rem; margin-bottom: .4rem; }
+  h3 { font-size: 1.1rem; margin-bottom: .35rem; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  section { padding: 64px 0; border-top: 1px solid var(--rule); }
+  .kicker { font: 700 .8rem "Chakra Petch", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); margin-bottom: .5rem; }
+  .lede { color: var(--muted); max-width: 68ch; margin-bottom: 1.8rem; }
+
+  /* header */
+  .top { background: var(--ink); color: #eef0f2; padding: 64px 0 56px; }
+  .top .kicker { color: var(--gold-bright); }
+  .top h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); margin-bottom: .8rem; }
+  .top p { max-width: 62ch; color: #c9cdd3; font-size: 1.08rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1.4rem; }
+  .chip { font-size: .8rem; font-weight: 600; padding: 4px 12px; border-radius: 99px; border: 1px solid #4a525e; color: #dfe2e6; }
+  .chip.gold { border-color: var(--gold-bright); color: #f0d79c; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1px; background: #2d343e; margin-top: 2.4rem; border: 1px solid #2d343e; }
+  .stat { background: var(--ink); padding: 18px 20px; }
+  .stat b { display: block; font: 700 1.9rem "Chakra Petch", sans-serif; color: #fff; }
+  .stat span { font-size: .85rem; color: #aab0b8; }
+
+  /* flow */
+  .flow { list-style: none; display: grid; gap: 0; counter-reset: s; }
+  .flow li { counter-increment: s; display: grid; grid-template-columns: 56px 1fr; gap: 16px; position: relative; padding-bottom: 22px; }
+  .flow li::before { content: counter(s); width: 40px; height: 40px; border-radius: 50%; background: var(--card); border: 2px solid var(--gold-bright);
+                     display: grid; place-items: center; font: 700 1rem "Chakra Petch", sans-serif; color: var(--gold); position: relative; z-index: 1; }
+  .flow li:not(:last-child)::after { content: ""; position: absolute; left: 19px; top: 40px; bottom: 0; width: 2px; background: var(--rule); }
+  .flow h3 { margin-top: 8px; }
+  .flow p { color: var(--muted); max-width: 70ch; }
+  .who { font-size: .78rem; font-weight: 600; color: var(--teal); background: #e4efed; border-radius: 4px; padding: 1px 8px; margin-left: 6px; vertical-align: 2px; }
+  .who.ai { color: var(--gold); background: var(--tint); }
+
+  /* demo */
+  .demo { display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px; align-items: start; }
+  .panel { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 22px; }
+  .jobcard { border: 1px solid var(--rule); border-radius: 8px; padding: 16px; margin: 14px 0 18px; }
+  .jobcard .num { font-family: "IBM Plex Mono", monospace; font-size: .9rem; color: var(--muted); }
+  .status { display: inline-block; font: 700 .85rem "Chakra Petch", sans-serif; letter-spacing: .05em; padding: 4px 12px; border-radius: 6px; background: var(--ink); color: #fff; margin-top: 8px; }
+  .status[data-s="QC_PENDING"], .status[data-s="QC_APPROVED"] { background: var(--teal); }
+  .status[data-s="CORRECTION"], .status[data-s="CANCELLED"] { background: var(--red); }
+  .status[data-s="ON_HOLD"] { background: #6b5a2a; }
+  .status[data-s="SENT"], .status[data-s="ARCHIVED"] { background: #3c4652; }
+  .meta-row { display: flex; gap: 18px; flex-wrap: wrap; font-size: .88rem; color: var(--muted); margin-top: 10px; }
+  .roles { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 14px; }
+  .roles button, .actions button, .reset {
+    font: 600 .9rem "IBM Plex Sans Thai", sans-serif; border-radius: 6px; padding: 8px 14px; cursor: pointer; border: 1px solid var(--rule); background: #fff; color: var(--ink);
+  }
+  .roles button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; min-height: 42px; }
+  .actions button { border-color: var(--gold-bright); }
+  .actions button:hover, .roles button:hover, .reset:hover { background: var(--tint); }
+  .roles button[aria-pressed="true"]:hover { background: var(--ink); }
+  button:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+  .none { color: var(--muted); font-size: .9rem; padding-top: 8px; }
+  .note { font-size: .88rem; color: var(--muted); margin-top: 14px; }
+  .warn { color: var(--red); font-weight: 600; }
+  .log { list-style: none; font-size: .86rem; max-height: 360px; overflow: auto; }
+  .log li { padding: 8px 0; border-bottom: 1px solid var(--rule); display: grid; grid-template-columns: 74px 1fr; gap: 10px; }
+  .log time { font-family: "IBM Plex Mono", monospace; color: var(--muted); font-size: .8rem; }
+  .reset { margin-top: 14px; font-size: .82rem; padding: 6px 12px; }
+
+  /* cards grid */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 20px; }
+  .card .tag { font: 700 .72rem "Chakra Petch", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+  .card p { color: var(--muted); font-size: .94rem; }
+  .formula { background: var(--ink); color: #e9ecef; border-radius: 10px; padding: 22px 24px; margin-top: 20px; font-family: "IBM Plex Mono", monospace; font-size: .95rem; line-height: 1.9; overflow-x: auto; }
+  .formula .w { color: #f0c96a; }
+  .bars { margin-top: 14px; display: grid; gap: 8px; }
+  .bar { display: grid; grid-template-columns: 170px 1fr 44px; gap: 12px; align-items: center; font-size: .9rem; }
+  .bar i { display: block; height: 12px; background: var(--gold-bright); border-radius: 2px; }
+
+  /* tables */
+  .tablewrap { overflow-x: auto; background: var(--card); border: 1px solid var(--rule); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--rule); }
+  th { font: 700 .78rem "Chakra Petch", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: #fafaf8; }
+  td.y { color: var(--teal); font-weight: 600; }
+  td.n { color: #9aa0a8; }
+  tr:last-child td { border-bottom: 0; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  ul.ticks { list-style: none; display: grid; gap: 8px; }
+  ul.ticks li { padding-left: 22px; position: relative; color: var(--muted); }
+  ul.ticks li::before { content: ""; position: absolute; left: 2px; top: .62em; width: 8px; height: 8px; background: var(--gold-bright); border-radius: 2px; }
+  ul.ticks b { color: var(--ink); font-weight: 600; }
+
+  .phase { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .phase .card { border-top: 3px solid var(--rule); }
+  .phase .card.done { border-top-color: var(--teal); }
+  .phase .state { font-size: .8rem; font-weight: 600; color: var(--muted); }
+  .phase .done .state { color: var(--teal); }
+
+  footer { padding: 40px 0 56px; border-top: 1px solid var(--rule); color: var(--muted); font-size: .9rem; }
+
+  @media (max-width: 820px) {
+    .demo, .two { grid-template-columns: 1fr; }
+    .bar { grid-template-columns: 130px 1fr 40px; }
+    section { padding: 48px 0; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="kicker">System design</div>
+    <h1>Studio PM</h1>
+    <p>A self-hosted job management system built for one kind of work: packaging prepress and artwork. It replaces a manual spreadsheet with a pipeline: jobs arrive by email, a local AI reads them, operators pick them up, QC checks them, and every step is recorded.</p>
+    <div class="chips">
+      <span class="chip gold">Design complete · core logic written</span>
+      <span class="chip">Next.js · PostgreSQL · Prisma</span>
+      <span class="chip">Local AI with Ollama</span>
+      <span class="chip">n8n · Microsoft Teams</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>16–30</b><span>people in the studio</span></div>
+      <div class="stat"><b>100+</b><span>jobs per day</span></div>
+      <div class="stat"><b>~36,000</b><span>jobs per year, all searchable</span></div>
+      <div class="stat"><b>0</b><span>per-seat fees, data stays on site</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section id="flow">
+  <div class="wrap">
+    <div class="kicker">How a job moves</div>
+    <h2>From email to archive</h2>
+    <p class="lede">Every job follows the same path. The AI does the reading and sorting, people do the work and the checking, and the system keeps the record.</p>
+    <ol class="flow">
+      <li><div><h3>Email arrives <span class="who ai">AI</span></h3><p>The inbox is read every 2 minutes. The classifier sorts each email: new job, change request, client reply, or spam. Auto-replies and duplicates are filtered out before any AI call.</p></div></li>
+      <li><div><h3>Job details are read <span class="who ai">AI</span></h3><p>The job name is parsed into brand, job number, client reference, description, pack type and cutter size. A regex handles the studio's naming rule; the AI is only the fallback. Thai notes get a one-line summary, and a time estimate is suggested.</p></div></li>
+      <li><div><h3>Job enters the pool <span class="who">Everyone</span></h3><p>The job goes straight to the shared pool, with no waiting for approval. Fields the AI was unsure of are marked for review. The job folder on the NAS is found and linked.</p></div></li>
+      <li><div><h3>Claimed or assigned <span class="who">Operator · Manager</span></h3><p>An operator can take the job, or a manager can assign it from the top 3 suggestions. Whichever happens first wins, and a database lock makes sure only one does. If nobody picks it up in time, managers get an alert.</p></div></li>
+      <li><div><h3>Artwork and signed checklist <span class="who">Operator</span></h3><p>The operator works the job, logs time, then downloads a checklist PDF already filled with the job number and type. They tick it and sign it in Acrobat. On upload the system checks the job number, the signature and every checkbox before the job moves on.</p></div></li>
+      <li><div><h3>QC review <span class="who">QC</span></h3><p>QC approves or rejects with notes. A rejection sends the job back to the operator as a correction. After three rounds, the job is escalated to a manager.</p></div></li>
+      <li><div><h3>Sent and archived <span class="who">Operator · Manager</span></h3><p>The delivery is recorded: who sent it, how many files and when. The job is archived but never deleted, and stays searchable by any of its reference numbers.</p></div></li>
+    </ol>
+  </div>
+</section>
+
+<section id="try">
+  <div class="wrap">
+    <div class="kicker">Try it</div>
+    <h2>Move a job through the workflow</h2>
+    <p class="lede">This runs the same status rules as the real system. Pick a role, and you only see the actions that role is allowed to take. The server works the same way: the screen never decides on its own.</p>
+    <div class="demo">
+      <div class="panel">
+        <div class="kicker" style="margin:0">Acting as</div>
+        <div class="roles" role="group" aria-label="Role">
+          <button type="button" data-role="OPERATOR" aria-pressed="true">Operator</button>
+          <button type="button" data-role="QC" aria-pressed="false">QC</button>
+          <button type="button" data-role="MANAGER" aria-pressed="false">Manager</button>
+        </div>
+        <div class="jobcard">
+          <div class="num">ABC40001 · 170900001 · TRAY</div>
+          <strong>Sample snack tray, size adaptation</strong><br>
+          <span class="status" id="status" data-s="POOL">POOL</span>
+          <div class="meta-row"><span id="owner">Owner: nobody</span><span id="cycle">QC rounds: 0</span></div>
+        </div>
+        <div class="kicker" style="margin:0 0 6px">Allowed actions</div>
+        <div class="actions" id="actions" aria-live="polite"></div>
+        <p class="note" id="note"></p>
+        <button type="button" class="reset" id="reset">Start again</button>
+      </div>
+      <div class="panel">
+        <div class="kicker" style="margin:0 0 8px">Audit trail</div>
+        <ol class="log" id="log"></ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="ai">
+  <div class="wrap">
+    <div class="kicker">AI layer</div>
+    <h2>Five small agents, one local model</h2>
+    <p class="lede">All AI runs on the studio's own machine with Ollama and a single Qwen3 8B model, so there are no API fees and no job data leaves the building. Each agent does one narrow, structured task, and a person can always correct it.</p>
+    <div class="grid">
+      <div class="card"><div class="tag">Agent 1</div><h3>Email classifier</h3><p>Reads the subject and the first 300 characters only. About 0.3 s per email. Possible duplicates go to a person instead of creating a job.</p></div>
+      <div class="card"><div class="tag">Agent 2</div><h3>Job name parser</h3><p>Regex first, AI as fallback. Low confidence (under 0.7) marks the field for review on the pool card.</p></div>
+      <div class="card"><div class="tag">Agent 3</div><h3>Thai notes summary</h3><p>Runs only when notes contain Thai script. Writes a one-line English summary for search. The original notes are never changed.</p></div>
+      <div class="card"><div class="tag">Agent 4</div><h3>Time estimator</h3><p>Uses job type, print method, pack type, size and similar past jobs. Gives a suggestion with a confidence level, and improves as real times are logged.</p></div>
+      <div class="card"><div class="tag">Agent 5</div><h3>Assignment scorer</h3><p>No AI at all: a plain SQL score. It ranks the top 3 operators for each job. A person always makes the final pick.</p></div>
+    </div>
+    <div class="formula" aria-label="Assignment score formula">
+      score = brand experience × <span class="w">0.4</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ available today × <span class="w">0.3</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ light workload × <span class="w">0.2</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ recent work on the brand × <span class="w">0.1</span>
+    </div>
+    <div class="bars" aria-hidden="true">
+      <div class="bar"><span>Brand experience</span><i style="width:100%"></i><span>40%</span></div>
+      <div class="bar"><span>Available today</span><i style="width:75%"></i><span>30%</span></div>
+      <div class="bar"><span>Light workload</span><i style="width:50%"></i><span>20%</span></div>
+      <div class="bar"><span>Recent on brand</span><i style="width:25%"></i><span>10%</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="roles">
+  <div class="wrap">
+    <div class="kicker">Who can do what</div>
+    <h2>Four roles, checked on the server</h2>
+    <p class="lede">Permissions are checked at the API, not just hidden in the screen. Every change is written to an audit log with who made it and when.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Action</th><th>Admin</th><th>Manager</th><th>QC</th><th>Operator</th></tr></thead>
+        <tbody>
+          <tr><td>Claim a job from the pool</td><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td></tr>
+          <tr><td>Create or edit a job</td><td class="y">Yes</td><td class="y">Yes</td><td class="y">Edit</td><td class="n">Own estimate only</td></tr>
+          <tr><td>Assign or reassign</td><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td><td class="n">No</td></tr>
+          <tr><td>Approve or reject in QC</td><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td><td class="n">Only if allowed to self-review</td></tr>
+          <tr><td>Hold, cancel, archive</td><td class="y">Yes</td><td class="y">Yes</td><td class="n">No</td><td class="n">No</td></tr>
+          <tr><td>SLA rules and audit log</td><td class="y">Yes</td><td class="y">Yes</td><td class="n">No</td><td class="n">No</td></tr>
+          <tr><td>Users, clients, API keys, delete</td><td class="y">Yes</td><td class="n">No</td><td class="n">No</td><td class="n">No</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="sla">
+  <div class="wrap two">
+    <div>
+      <div class="kicker">Deadlines</div>
+      <h2>SLA by client, job type and urgency</h2>
+      <p class="lede">Each job gets its deadline when it is created. The system picks the most specific rule that matches:</p>
+      <ul class="ticks">
+        <li><b>Client + job type + urgency</b></li>
+        <li><b>Client + urgency</b></li>
+        <li><b>Any client + job type + urgency</b></li>
+        <li><b>Any client + urgency</b> (fallback)</li>
+      </ul>
+      <p class="note">Time spent in every stage is recorded, so reports show where jobs actually wait.</p>
+    </div>
+    <div>
+      <div class="kicker">Reports</div>
+      <h2>Sent to Teams automatically</h2>
+      <ul class="ticks">
+        <li><b>Daily, 6 PM:</b> jobs done, in QC and overdue</li>
+        <li><b>Weekly:</b> on-time rate, average time per job type, QC rounds</li>
+        <li><b>Monthly:</b> full performance summary, top clients</li>
+        <li><b>Yearly:</b> volume, trends, top brands, SLA performance</li>
+        <li><b>Tracked:</b> estimated vs actual time, so the AI estimate can be checked</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="safe">
+  <div class="wrap">
+    <div class="kicker">Built to be trusted</div>
+    <h2>Rules that protect the data</h2>
+    <div class="grid" style="margin-top:1.4rem">
+      <div class="card"><h3>Nothing is deleted</h3><p>Deleting only hides a record. Every job, comment and change stays in the database.</p></div>
+      <div class="card"><h3>No lost updates</h3><p>Each job has a version number. If two people change it at once, the second gets a clear "reload" message instead of overwriting.</p></div>
+      <div class="card"><h3>One path for status</h3><p>A job's status changes in exactly one place in the code, which checks the role, the current status and the required input.</p></div>
+      <div class="card"><h3>Files stay where they are</h3><p>The system finds each job's existing NAS folder and never invents its own layout. If the NAS is down, jobs are still created.</p></div>
+      <div class="card"><h3>Backups in layers</h3><p>Database streamed to the NAS, a daily snapshot offsite, RAID on the NAS, and a printed restore runbook. Target: at most 15 minutes of data lost.</p></div>
+      <div class="card"><h3>Open API</h3><p>A versioned REST API with hashed, scoped API keys, so other studio tools and scripts can create and move jobs.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="wrap two">
+    <div>
+      <div class="kicker">Stack</div>
+      <h2>Simple, self-hosted parts</h2>
+      <ul class="ticks">
+        <li><b>App:</b> Next.js, TypeScript (strict), Tailwind, Zod validation</li>
+        <li><b>Data:</b> PostgreSQL 16 with Prisma, full-text search</li>
+        <li><b>AI:</b> Ollama running Qwen3 8B, English and Thai</li>
+        <li><b>Automation:</b> n8n for email polling, Teams alerts and scheduled reports</li>
+        <li><b>PDF:</b> pdf-lib reads signed checklists; Puppeteer renders reports</li>
+        <li><b>Server:</b> one Mac Mini M4 (24 GB) in Docker, files on a separate NAS</li>
+      </ul>
+    </div>
+    <div>
+      <div class="kicker">How it gets built</div>
+      <h2>Hard parts first</h2>
+      <p class="lede" style="margin-bottom:1rem">The parts that are easiest to get wrong were written and tested first. A coding model then builds the rest in 22 small tasks, each with a clear "done when" check.</p>
+      <ul class="ticks">
+        <li><b>Written first:</b> database schema, status workflow rules, permissions, NAS path rule, SLA rules, assignment scoring</li>
+        <li><b>Tested:</b> 14 tests on the core logic that must stay green</li>
+        <li><b>Guard rails:</b> 15 rules for the coding agent, such as one way to change status, no hard deletes, and checks before every commit</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="phases">
+  <div class="wrap">
+    <div class="kicker">Where it stands</div>
+    <h2>Phases</h2>
+    <div class="phase" style="margin-top:1.4rem">
+      <div class="card done"><div class="state">Done</div><h3>System design</h3><p>Workflow, database, AI agents, roles, SLA, backups and risk register.</p></div>
+      <div class="card done"><div class="state">Done</div><h3>Core logic and build plan</h3><p>Schema and core rules written with tests; 22-task plan for the build.</p></div>
+      <div class="card"><div class="state">Next</div><h3>Phase 1: core app</h3><p>Login, jobs, pool, board, QC loop, admin pages and the REST API.</p></div>
+      <div class="card"><div class="state">Later</div><h3>Phases 2–4</h3><p>AI agents and email intake, Teams alerts, checklist parsing, then reports and analytics.</p></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    Designed by Sarayut Rungsawang · <a href="https://github.com/NONSFIX">github.com/NONSFIX</a><br>
+    Sample data on this page is made up. No client or studio data is shown.
+  </div>
+</footer>
+
+<script>
+// Status rules from the design (lib/workflow/rules.ts), simplified to three roles.
+const ACTIVE = ["POOL","ASSIGNED","IN_PROGRESS","QC_PENDING","CORRECTION","QC_APPROVED"];
+const RULES = [
+  { a:"claim",            label:"Take this job",        from:["POOL"],                    to:"IN_PROGRESS", roles:["OPERATOR","QC","MANAGER"] },
+  { a:"assign",           label:"Assign to Mali",       from:["POOL"],                    to:"ASSIGNED",    roles:["QC","MANAGER"] },
+  { a:"start",            label:"Start",                from:["ASSIGNED"],                to:"IN_PROGRESS", roles:["OPERATOR","MANAGER"], owner:true },
+  { a:"release",          label:"Release to pool",      from:["ASSIGNED","IN_PROGRESS"],  to:"POOL",        roles:["OPERATOR","QC","MANAGER"], owner:true },
+  { a:"submit_qc",        label:"Upload signed checklist", from:["IN_PROGRESS"],          to:"QC_PENDING",  roles:["OPERATOR","MANAGER"], owner:true },
+  { a:"approve",          label:"Approve",              from:["QC_PENDING"],              to:"QC_APPROVED", roles:["QC","MANAGER"] },
+  { a:"reject",           label:"Reject with notes",    from:["QC_PENDING"],              to:"CORRECTION",  roles:["QC","MANAGER"] },
+  { a:"start_correction", label:"Start correction",     from:["CORRECTION"],              to:"IN_PROGRESS", roles:["OPERATOR","MANAGER"], owner:true },
+  { a:"mark_sent",        label:"Mark sent (3 files)",  from:["QC_APPROVED"],             to:"SENT",        roles:["OPERATOR","MANAGER"], owner:true },
+  { a:"archive",          label:"Archive",              from:["SENT"],                    to:"ARCHIVED",    roles:["MANAGER"] },
+  { a:"hold",             label:"Put on hold",          from:ACTIVE,                      to:"ON_HOLD",     roles:["MANAGER"] },
+  { a:"resume",           label:"Resume",               from:["ON_HOLD"],                 to:null,          roles:["MANAGER"] },
+  { a:"cancel",           label:"Cancel job",           from:[...ACTIVE,"ON_HOLD"],       to:"CANCELLED",   roles:["MANAGER"] },
+];
+const NAMES = { OPERATOR:"Mali (operator)", QC:"Niran (QC)", MANAGER:"Ploy (manager)" };
+const $ = id => document.getElementById(id);
+let job, role = "OPERATOR", t;
+
+function reset() {
+  job = { status:"POOL", owner:null, cycle:0, holdFrom:null };
+  t = 9 * 60 + 2;
+  $("log").innerHTML = "";
+  log("Email read by AI, job added to pool", "System");
+  render();
+}
+function clock() { t += 7 + Math.floor(Math.random() * 30); return String(Math.floor(t / 60) % 24).padStart(2,"0") + ":" + String(t % 60).padStart(2,"0"); }
+function log(text, who) {
+  const li = document.createElement("li");
+  li.innerHTML = `<time>${clock()}</time><span>${text} <span style="color:var(--muted)">· ${who}</span></span>`;
+  $("log").prepend(li);
+}
+// Owner-only actions: the operator must be OP1 (Mali); managers may act for them.
+function allowed(r) {
+  if (!r.from.includes(job.status) || !r.roles.includes(role)) return false;
+  if (r.owner && role === "OPERATOR" && job.owner !== "Mali") return false;
+  return true;
+}
+function run(r) {
+  const from = job.status;
+  if (r.a === "claim") job.owner = NAMES[role].split(" ")[0];
+  if (r.a === "assign") job.owner = "Mali";
+  if (r.a === "release") job.owner = null;
+  if (r.a === "reject") job.cycle++;
+  if (r.a === "hold") job.holdFrom = from;
+  job.status = r.a === "resume" ? job.holdFrom : r.to;
+  if (r.a === "resume") job.holdFrom = null;
+  let text = `${r.label}: ${from} → ${job.status}`;
+  if (r.a === "submit_qc") text += " (job number, signature and checkboxes verified)";
+  log(text, NAMES[role]);
+  if (r.a === "reject" && job.cycle >= 3) log(`QC round ${job.cycle}: escalated to managers`, "System");
+  render();
+}
+function render() {
+  $("status").textContent = job.status.replace("_", " ");
+  $("status").dataset.s = job.status;
+  $("owner").textContent = "Owner: " + (job.owner || "nobody");
+  $("cycle").textContent = "QC rounds: " + job.cycle;
+  const box = $("actions");
+  box.innerHTML = "";
+  const list = RULES.filter(allowed);
+  list.forEach(r => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = r.label; b.onclick = () => run(r);
+    box.appendChild(b);
+  });
+  if (!list.length) box.innerHTML = `<span class="none">No actions for this role right now. Try another role.</span>`;
+  const notes = {
+    POOL: "In the pool, any operator can take the job, or QC or a manager can assign it.",
+    ASSIGNED: "Assigned jobs wait for the owner to press Start.",
+    QC_PENDING: "An operator cannot approve their own work unless they are allowed to self-review.",
+    CORRECTION: job.cycle >= 3 ? "Three rejections: managers have been alerted." : "Rejected work goes back to the same operator with notes.",
+    ARCHIVED: "Archived jobs are kept forever and stay searchable.",
+    CANCELLED: "Cancelled jobs are kept in the record, never deleted.",
+  };
+  $("note").innerHTML = job.cycle >= 3 && job.status === "CORRECTION" ? `<span class="warn">${notes.CORRECTION}</span>` : (notes[job.status] || "");
+}
+document.querySelectorAll("[data-role]").forEach(b => b.onclick = () => {
+  role = b.dataset.role;
+  document.querySelectorAll("[data-role]").forEach(x => x.setAttribute("aria-pressed", x === b));
+  render();
+});
+$("reset").onclick = reset;
+reset();
+</script>
+</body>
+</html>
